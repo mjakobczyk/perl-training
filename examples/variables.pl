@@ -9,6 +9,7 @@ print $variable, "\n";
 # Arrays
 my @numbers = (1,2,3); # array of ints
 print @numbers, "\n";
+print $#numbers + 1 # array length
 foreach(@numbers) {
     print "$_ ";   
 }
