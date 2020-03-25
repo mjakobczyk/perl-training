@@ -3,12 +3,20 @@ use strict;
 use warnings;
 
 my $inputListPath = "resources/input/list.txt";
+my $outputResultPath = "resources/output/results.txt";
 my $seqDirPath = "resources/input/seq/";
 
 # Arg: relative file name to open
-sub openFileAndGetInputStream {
+sub openInputFileAndGetInputStream {
     my $fileName = shift;
-    open(my $stream, "<", "$fileName") or print "Could not open file - $!\n";
+    open(my $stream, "<", "$fileName") or return 0;
+    return $stream;
+}
+
+# Arg: relative file name to open
+sub openOuputFileAndGetOutputStream {
+    my $fileName = shift;
+    open(my $stream, ">", "$fileName") or die "Could not open output file - $!\n";
     return $stream;
 }
 
@@ -21,34 +29,74 @@ sub seqFileNameBuilder {
     return $fileName;
 }
 
+# Arg: character to check
+sub isForbiddenChar {
+    my $argument = shift;
+    my @forbidden = ("_", "-", "X");
+    foreach(@forbidden) {
+        if ($argument eq $_) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+# Arg: name of file
+# arg: output stream
 sub generateResultForFile {
-    my $fileName = shift;
+    my ($fileName,$outputStream) = @_;
     my $seqFileName = seqFileNameBuilder($fileName);
-    my $seqFileInputStream = openFileAndGetInputStream("$seqFileName");
+    my $seqFileInputStream;
+
+    unless ($seqFileInputStream = openInputFileAndGetInputStream("$seqFileName")) {
+        return;
+    }
+
     my @seqFileLines = <$seqFileInputStream>;
     my $firstColumnChar = substr($fileName, 4, 5);
+    chomp $firstColumnChar;
+    
     my $firstResultLine;
     my $secondResultLine;
 
     foreach(@seqFileLines) {
         my $line = $_;
-        if (substr("$line", 0, 1) eq $firstColumnChar) {
-            my $delimited = split("/,/", $line);
-            print $delimited;
+        my $firstLineChar = substr($line, 0, 1);
+        chomp $firstLineChar;
 
-            # TODO: values from 3rd and 4th column of split string
+        if ($firstLineChar eq $firstColumnChar) {
+            my @delimited = split(',', $line);
+            my $firstCharToAppend = $delimited[1];
+            my $secondCharToAppend = $delimited[2];
+
+            my $res = isForbiddenChar($firstCharToAppend);
+
+            if (isForbiddenChar($firstCharToAppend) or isForbiddenChar($secondCharToAppend)) {
+                next;
+            }
+
+            $firstResultLine = $firstResultLine . $firstCharToAppend;
+            $secondResultLine = $secondResultLine . $secondCharToAppend;
         }
     }
+
+    my $correctedFileName = lc substr($fileName, 0, 4);
+    chomp $correctedFileName;
+    my $header = "> " . $correctedFileName . "_" . $firstColumnChar . "\n";
+    print $outputStream $header;
+    print $outputStream $firstResultLine, "\n";
+    print $outputStream $secondResultLine, "\n";
+    print $outputStream "\n";
 }
 
-my $inputStream = openFileAndGetInputStream($inputListPath);
+my $inputStream = openInputFileAndGetInputStream($inputListPath);
+my $outputStream = openOuputFileAndGetOutputStream($outputResultPath);
 my @inputListLines = <$inputStream>;
 
-# foreach(@inputListLines) {
-#     generateResultForFile("$_");
-# }
+foreach(@inputListLines) {
+    generateResultForFile("$_", $outputStream);
+}
 
-# For testing purposes: take only one argument and run algoritm with it
-# my $fileToTest = "$inputListLines[0];"
-my $fileToTest = "3K71B";
-generateResultForFile("$fileToTest");
+close $inputStream;
+close $outputStream;
